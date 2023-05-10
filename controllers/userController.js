@@ -1,4 +1,24 @@
-const Users = require('../models/users')
+const User = require('../models/user')
+
+exports.getUserAll = async (req, res) => {
+  const resp = {
+    code: 50000,
+    message: 'unknown error'
+  }
+
+  await User.find({})
+  .then((data) => {
+    resp.code = 20000
+    resp.message = 'success'
+    resp.data = data
+    res.json(resp)
+  })
+  .catch((err) => {
+    resp.code = 40000
+    resp.message = 'fail'
+    res.json(resp)
+  })
+}
 
 exports.create = async (req, res) => {
   const resp = {
@@ -28,11 +48,11 @@ exports.create = async (req, res) => {
     userData.passwd = passwd
     if (role && role !== '') { userData.role = role }
 
-    await new Users(userData).save()
-    .then((user) => {
+    await new User(userData).save()
+    .then((data) => {
       resp.code = 20000
       resp.message = 'success'
-      resp.data = user
+      resp.data = data
       res.json(resp)
     })
     .catch((err) => {
@@ -41,26 +61,6 @@ exports.create = async (req, res) => {
       res.json(resp)
     })
   }
-}
-
-exports.getUserAll = async (req, res) => {
-  const resp = {
-    code: 50000,
-    message: 'unknown error'
-  }
-
-  await Users.find({})
-  .then((users) => {
-    resp.code = 20000
-    resp.message = 'success'
-    resp.data = users
-    res.json(resp)
-  })
-  .catch((err) => {
-    resp.code = 40000
-    resp.message = 'fail'
-    res.json(resp)
-  })
 }
 
 exports.getUserById = async (req, res) => {
@@ -80,11 +80,11 @@ exports.getUserById = async (req, res) => {
   }
 
   if (id) {
-    await Users.findById(id)
-    .then((user) => {
+    await User.findById(id)
+    .then((data) => {
       resp.code = 20000
       resp.message = 'success'
-      resp.data = user
+      resp.data = data
       res.json(resp)
     })
     .catch((err) => {
@@ -117,13 +117,13 @@ exports.updateUserById = async (req, res) => {
     if (req.body.passwd && req.body.passwd !== '') { userData.passwd = req.body.passwd }
     if (req.body.role && req.body.rold !== '') { userData.role = req.body.role }
 
-    await Users.findByIdAndUpdate(id, { $set: userData })
+    await User.findByIdAndUpdate(id, { $set: userData })
     .then(() => {
-      Users.findById(id)
-      .then((user) => {
+      User.findById(id)
+      .then((data) => {
         resp.code = 20000
         resp.message = 'success'
-        resp.data = user
+        resp.data = data
         res.json(resp)
       })
     })
@@ -152,11 +152,11 @@ exports.deleteUserById = async (req, res) => {
   }
 
   if (id) {
-    await Users.findByIdAndDelete(id)
-    .then((user) => {
+    await User.findByIdAndDelete(id)
+    .then((data) => {
       resp.code = 20000
       resp.message = 'success'
-      resp.data = user
+      resp.data = data
       res.json(resp)
     })
     .catch((err) => {

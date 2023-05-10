@@ -1,8 +1,8 @@
 const express = require('express')
 const router = express.Router()
 const {
-  create,
   getUserAll,
+  create,
   getUserById,
   updateUserById,
   deleteUserById
@@ -15,8 +15,8 @@ router.get('/', function(req, res, next) {
   res.send('respond with a resource')
 })
 
-router.post('/create', create)
 router.get('/all', getUserAll)
+router.post('/create', create)
 router.get('/:id', getUserById)
 router.put('/:id', updateUserById)
 router.delete('/:id', deleteUserById)
