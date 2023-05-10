@@ -10,6 +10,20 @@ app.use(express.json())
 app.use(morgan('dev'))
 app.use(cors())
 
+mongoose.connect(
+  process.env.DATABASE,
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  }
+)
+.then(() => {
+  console.log('Database connected.')
+})
+.catch((error) => {
+  console.error('Connection error:', error)
+})
+
 /* initial route */
 app.get('/', (req, res) => {
   res.send('Hello World!')
