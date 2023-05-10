@@ -29,8 +29,11 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 
-const usersRouter = require('./routes/users')
-app.use('/users', usersRouter)
+const userRouter = require('./routes/user')
+app.use('/user', userRouter)
+
+const numberRouter = require('./routes/number')
+app.use('/number', numberRouter)
 
 const port = 4000
 app.listen(port, () => {

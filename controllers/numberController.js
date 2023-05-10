@@ -1,12 +1,14 @@
-const User = require('../models/user')
+const Number = require('../models/number')
+// const moment = require('moment-timezone')
+// const dateThai = moment().tz("Asia/Bangkok").format()
 
-exports.getUserAll = async (req, res) => {
+exports.getNumberAll = async (req, res) => {
   const resp = {
     code: 50000,
     message: 'unknown error'
   }
 
-  await User.find({})
+  await Number.find({})
   .then((data) => {
     resp.code = 20000
     resp.message = 'success'
@@ -25,30 +27,44 @@ exports.create = async (req, res) => {
     code: 50000,
     message: 'unknown error'
   }
-  const {uname, passwd, role} = req.body
-  // resp.data = {uname, passwd, role}
+  const payload = req.body
+  // res.json(resp)
 
   switch(true) {
-    case !uname:
+    case !payload.customer:
       resp.code = 40000
-      resp.message = 'require uname'
+      resp.message = 'require customer'
       return res.json(resp)
       break
 
-    case !passwd:
+    case !payload.sale:
       resp.code = 40000
-      resp.message = 'require passwd'
+      resp.message = 'require sale'
+      return res.json(resp)
+      break
+
+    case !payload.dateSold:
+      resp.code = 40000
+      resp.message = 'require date sold'
+      return res.json(resp)
+      break
+
+    case !payload.grandTotal:
+      resp.code = 40000
+      resp.message = 'require grand total'
       return res.json(resp)
       break
   }
 
-  if (uname && passwd) {
-    const userData = {}
-    userData.uname = uname
-    userData.passwd = passwd
-    if (role && role !== '') { userData.role = role }
+  if (payload.customer && payload.sale && payload.dateSold && payload.grandTotal) {
+    const numberData = {}
+    numberData.customer = payload.customer
+    numberData.sale = payload.sale
+    numberData.dateSold = payload.dateSold
+    numberData.numbers = payload.numbers
+    numberData.grandTotal = payload.grandTotal
 
-    await new User(userData).save()
+    await new Number(numberData).save()
     .then((data) => {
       resp.code = 20000
       resp.message = 'success'
@@ -63,7 +79,7 @@ exports.create = async (req, res) => {
   }
 }
 
-exports.getUserById = async (req, res) => {
+exports.getNumberById = async (req, res) => {
   const resp = {
     code: 50000,
     message: 'unknown error'
@@ -80,7 +96,7 @@ exports.getUserById = async (req, res) => {
   }
 
   if (id) {
-    await User.findById(id)
+    await Number.findById(id)
     .then((data) => {
       resp.code = 20000
       resp.message = 'success'
@@ -95,7 +111,7 @@ exports.getUserById = async (req, res) => {
   }
 }
 
-exports.updateUserById = async (req, res) => {
+exports.updateNumberById = async (req, res) => {
   const resp = {
     code: 50000,
     message: 'unknown error'
@@ -106,20 +122,23 @@ exports.updateUserById = async (req, res) => {
   switch(true) {
     case !id:
       resp.code = 40000
-      resp.message = 'require user id'
+      resp.message = 'require number id'
       return res.json(resp)
       break
   }
 
   if (id) {
-    const userData = {}
-    if (req.body.uname && req.body.uname !== '') { userData.uname = req.body.uname }
-    if (req.body.passwd && req.body.passwd !== '') { userData.passwd = req.body.passwd }
-    if (req.body.role && req.body.rold !== '') { userData.role = req.body.role }
+    const payload = req.body
+    const numberData = {}
+    numberData.customer = payload.customer
+    numberData.sale = payload.sale
+    // numberData.dateSold = payload.dateSold
+    numberData.numbers = payload.numbers
+    numberData.grandTotal = payload.grandTotal
 
-    await User.findByIdAndUpdate(id, { $set: userData })
+    await Number.findByIdAndUpdate(id, { $set: numberData })
     .then(() => {
-      User.findById(id)
+      Number.findById(id)
       .then((data) => {
         resp.code = 20000
         resp.message = 'success'
@@ -135,7 +154,7 @@ exports.updateUserById = async (req, res) => {
   }
 }
 
-exports.deleteUserById = async (req, res) => {
+exports.deleteNumberById = async (req, res) => {
   const resp = {
     code: 50000,
     message: 'unknown error'
@@ -146,13 +165,13 @@ exports.deleteUserById = async (req, res) => {
   switch(true) {
     case !id:
       resp.code = 40000
-      resp.message = 'require user id'
+      resp.message = 'require number id'
       return res.json(resp)
       break
   }
 
   if (id) {
-    await User.findByIdAndDelete(id)
+    await Number.findByIdAndDelete(id)
     .then((data) => {
       resp.code = 20000
       resp.message = 'success'
