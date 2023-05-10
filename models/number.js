@@ -14,6 +14,29 @@ const numberSchema = mongoose.Schema(
       type: String,
       required: true
     },
+    numbers: [
+      {
+        number: { type: String },
+        direct: {
+          price: { type: Number },
+          multiple: { type: Number },
+          total: { type: Number },
+          reward: {
+            reward: { type: Boolean },
+            total: { type: Number }
+          }
+        },
+        mix: {
+          price: { type: Number },
+          multiple: { type: Number },
+          total: { type: Number },
+          reward: {
+            reward: { type: Boolean },
+            total: { type: Number }
+          }
+        }
+      }
+    ],
     grandTotal: {
       type: Number,
       required: true
@@ -21,7 +44,7 @@ const numberSchema = mongoose.Schema(
     tax: {
       percent: { type: Number },
       total: { type: Number },
-      grandTotalBeforetax: { type: Number }
+      grandTotalBeforeTax: { type: Number }
     }
   },
   {

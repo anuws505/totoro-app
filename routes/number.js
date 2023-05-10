@@ -2,7 +2,10 @@ const express = require('express')
 const router = express.Router()
 const {
   getNumberAll,
-  create
+  create,
+  getNumberById,
+  updateNumberById,
+  deleteNumberById
 } = require('../controllers/numberController')
 
 router.get('/', function(req, res, next) {
@@ -11,5 +14,8 @@ router.get('/', function(req, res, next) {
 
 router.get('/all', getNumberAll)
 router.post('/create', create)
+router.get('/:id', getNumberById)
+router.put('/:id', updateNumberById)
+router.delete('/:id', deleteNumberById)
 
 module.exports = router
