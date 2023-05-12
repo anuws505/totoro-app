@@ -1,6 +1,6 @@
 const Number = require('../models/number')
-// const moment = require('moment-timezone')
-// const dateThai = moment().tz("Asia/Bangkok").format()
+const moment = require('moment-timezone')
+// const dateThai = new moment().tz('Asia/Bangkok').format()
 
 exports.getNumberAll = async (req, res) => {
   const resp = {
@@ -63,6 +63,8 @@ exports.create = async (req, res) => {
     numberData.dateSold = payload.dateSold
     numberData.numbers = payload.numbers
     numberData.grandTotal = payload.grandTotal
+    numberData.created_date = new moment().tz('Asia/Bangkok').format()
+    numberData.updated_date = new moment().tz('Asia/Bangkok').format()
 
     await new Number(numberData).save()
     .then((data) => {
@@ -135,6 +137,7 @@ exports.updateNumberById = async (req, res) => {
     // numberData.dateSold = payload.dateSold
     numberData.numbers = payload.numbers
     numberData.grandTotal = payload.grandTotal
+    numberData.updated_date = new moment().tz('Asia/Bangkok').format()
 
     await Number.findByIdAndUpdate(id, { $set: numberData })
     .then(() => {
