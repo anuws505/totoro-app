@@ -45,10 +45,13 @@ const numberSchema = mongoose.Schema(
       percent: { type: Number },
       total: { type: Number },
       grandTotalBeforeTax: { type: Number }
+    },
+    created_date: {
+      type: String
+    },
+    updated_date: {
+      type: String
     }
-  },
-  {
-    timestamps: true
   }
 )
 

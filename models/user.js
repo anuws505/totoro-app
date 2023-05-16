@@ -13,10 +13,13 @@ const userSchema = mongoose.Schema(
     role: {
       type: String,
       default: 'customer'
+    },
+    created_date: {
+      type: String
+    },
+    updated_date: {
+      type: String
     }
-  },
-  {
-    timestamps: true
   }
 )
 

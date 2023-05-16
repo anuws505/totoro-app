@@ -1,4 +1,6 @@
 const User = require('../models/user')
+const moment = require('moment-timezone')
+// const dateThai = new moment().tz('Asia/Bangkok').format()
 
 exports.getUserAll = async (req, res) => {
   const resp = {
@@ -46,6 +48,8 @@ exports.create = async (req, res) => {
     const userData = {}
     userData.uname = uname
     userData.passwd = passwd
+    userData.created_date = new moment().tz('Asia/Bangkok').format()
+    userData.updated_date = new moment().tz('Asia/Bangkok').format()
     if (role && role !== '') { userData.role = role }
 
     await new User(userData).save()
@@ -116,6 +120,7 @@ exports.updateUserById = async (req, res) => {
     if (req.body.uname && req.body.uname !== '') { userData.uname = req.body.uname }
     if (req.body.passwd && req.body.passwd !== '') { userData.passwd = req.body.passwd }
     if (req.body.role && req.body.rold !== '') { userData.role = req.body.role }
+    userData.updated_date = moment().tz('Asia/Bangkok').format()
 
     await User.findByIdAndUpdate(id, { $set: userData })
     .then(() => {
