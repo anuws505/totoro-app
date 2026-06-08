@@ -1,0 +1,40 @@
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+  "net/http"
+)
+
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+  fmt.Fprintf(w, "สวัสดี! ยินดีต้อนรับสู่ Go Web Server ของคุณ")
+}
+func byeHandler(w http.ResponseWriter, r *http.Request) {
+  fmt.Fprintf(w, "ลาก่อน! Go Web Server ไว้พบกันใหม่นะ")
+}
+
+func apiHelloHandler(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+
+  response := map[string]string{
+    "message": "Hello from Go Backend!",
+    "status":  "success",
+  }
+
+  json.NewEncoder(w).Encode(response)
+}
+
+func main() {
+  http.HandleFunc("/", helloHandler)
+  http.HandleFunc("/bye", byeHandler)
+
+  http.HandleFunc("/api/hello", apiHelloHandler)
+
+  fmt.Println("Server is running on http://localhost:8080")
+  fmt.Println("API is available at http://localhost:8080/api/hello")
+
+  err := http.ListenAndServe(":8080", nil)
+  if err != nil {
+    fmt.Println("Error starting server:", err)
+  }
+}

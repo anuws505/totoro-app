@@ -1,0 +1,282 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+)
+
+type OrderStatus string
+type UserStatus string
+
+const (
+  OrderDraft            OrderStatus = "DRAFT"
+  OrderWaitingPayment   OrderStatus = "WAITING_PAYMENT"
+  OrderPaid             OrderStatus = "PAID"
+  OrderExpired          OrderStatus = "EXPIRED"
+  OrderCompleted        OrderStatus = "COMPLETED"
+  OrderCancelled        OrderStatus = "CANCELLED"
+
+  UserActive   UserStatus = "ACTIVE"
+  UserInActive UserStatus = "INACTIVE"
+  UserBanned   UserStatus = "BANNED"
+)
+
+// กำหนดโครงสร้างข้อมูล (Table Schema)
+type Order struct {
+  ID           string      `gorm:"primaryKey" json:"id"`
+  UserID       string      `gorm:"index" json:"user_id"`
+  Status       OrderStatus `json:"status"`
+  Items        []OrderItem `gorm:"foreignKey:OrderID"`
+  TotalPrice   float64     `json:"total_price"`
+  ExpiresAt    time.Time   `json:"expires_at"`
+  CreatedAt    time.Time   `json:"created_at"`
+  UpdatedAt    time.Time   `json:"updated_at"`
+}
+
+type OrderItem struct {
+  ID        uint      `gorm:"primaryKey"`
+  OrderID   string    `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+  ProductID string    `json:"product_id"`
+  Quantity  int       `json:"quantity"`
+  Price     float64   `json:"price"`
+}
+
+var (
+  db  *gorm.DB
+  rdb *redis.Client
+  ctx = context.Background()
+)
+
+func initConnections() {
+  // --- เชื่อมต่อ Postgres ---
+  dsn := "host=localhost user=user password=password dbname=farm_db port=5432 sslmode=disable"
+
+  var err error
+  db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+  if err != nil {
+    log.Fatal("Failed to connect to Postgres:", err)
+  }
+
+  sqlDB, err := db.DB()
+  if err != nil {
+    log.Fatal("Failed to get generic database object:", err)
+  }
+
+  // จำกัดจำนวนท่อที่เปิดค้างไว้
+  sqlDB.SetMaxOpenConns(10)
+  sqlDB.SetMaxIdleConns(5)
+  sqlDB.SetConnMaxLifetime(time.Hour)
+
+  // สร้างตารางอัตโนมัติ
+  db.AutoMigrate(&Order{}, &OrderItem{})
+
+  fmt.Println("Database Migrated & Table Created!")
+
+  // --- เชื่อมต่อ Redis ---
+  rdb = redis.NewClient(&redis.Options{
+    Addr: "localhost:6379",
+    Password: "",
+    DB: 0,
+    MaxRetries: 3,
+    MinRetryBackoff: 500 * time.Millisecond,
+    PoolSize: 10,
+  })
+
+  if err := rdb.Ping(ctx).Err(); err != nil {
+    log.Fatal("Failed to connect to Redis:", err)
+  }
+
+  fmt.Println("All connections established & Pooled!")
+}
+
+// ฟังก์ชันเช็กว่า User มีงานค้างไหม (Resume State)
+func checkUserCurrentState(userID string) {
+  // ขั้นแรก: เช็กใน Redis ว่ามี Session ถอยหลังอยู่ไหม
+  val, err := rdb.Get(ctx, "session:"+userID).Result()
+  if err == nil {
+    fmt.Printf("Redis: User %s กำลังอยู่ในหน้าจอง (Session ID: %s)\n", userID, val)
+    // ดึงเวลาที่เหลือจาก Redis
+    ttl, _ := rdb.TTL(ctx, "session:"+userID).Result()
+    fmt.Printf("เหลือเวลาจองอีก: %v\n", ttl)
+    return
+  }
+
+  // ขั้นที่สอง: ถ้า Redis ไม่มี ให้ไปเช็กใน Postgres (เผื่อ User ปิดจอนานจน Session หลุด)
+  var lastOrder Order
+  now := time.Now()
+
+  result := db.Where("user_id = ? AND status = ? AND expires_at > ?", userID, OrderWaitingPayment, now).First(&lastOrder)
+  if result.Error == nil {
+    fmt.Printf("Postgres: พบ Order ที่ยังไม่หมดอายุ (ID: %s) สร้างเมื่อ %v\n", lastOrder.ID, lastOrder.CreatedAt)
+  } else {
+    fmt.Println("ไม่พบงานค้าง: พาไปหน้าเริ่มจองใหม่")
+  }
+}
+
+// Cleanup an expired orders
+func startCleanupWorker(db *gorm.DB) {
+  // ticker := time.NewTicker(1 * time.Minute) // ให้ส่งสัญญาณทุก 1 นาที
+  ticker := time.NewTicker(20 * time.Second) // 20 วินาที
+
+  // หยุด Ticker เมื่อฟังก์ชันนี้จบลง (ป้องกัน Memory Leak)
+  defer ticker.Stop()
+
+  for {
+    select {
+    case <-ticker.C:
+      now := time.Now()
+      fmt.Printf("[%s] Background Worker: กำลังตรวจสอบ Order ที่หมดอายุแล้ว...\n", now.Format("2006-01-02 15:04:05"))
+
+      result := db.Model(&Order{}).
+        Where("status = ? AND expires_at < ?", OrderWaitingPayment, now).
+        Update("status", OrderExpired)
+
+      if result.RowsAffected > 0 {
+        fmt.Printf("Cleanup succesfull! ลบไป %d รายการ\n", result.RowsAffected)
+      }
+    }
+  }
+}
+
+// ฟังก์ชันแจกบัตรคิว (Queueing Logic)
+func addToQueue(userID string) {
+  // ใช้ Timestamp เป็น "คะแนน (Score)" เพื่อเรียงลำดับว่าใครมาก่อน-หลัง
+  now := time.Now().UnixNano()
+
+  // ZAdd: เพิ่ม User เข้าไปใน Sorted Set ชื่อ "waiting_room"
+  err := rdb.ZAdd(ctx, "waiting_room", redis.Z{
+    Score:  float64(now),
+    Member: userID,
+  }).Err()
+
+  if err != nil {
+    fmt.Println("ต่อคิวไม่สำเร็จ:", err)
+    return
+  }
+
+  // ZRank: เช็กว่าตอนนี้เราอยู่อันดับที่เท่าไหร่ (เริ่มจาก 0)
+  rank, err := rdb.ZRank(ctx, "waiting_room", userID).Result()
+  if err != nil {
+    fmt.Println("หาอันดับไม่เจอ:", err)
+    return
+  }
+
+  fmt.Printf("User %s ได้บัตรคิวแล้ว! คุณอยู่อันดับที่: %d (คนข้างหน้าคุณมี %d คน)\n", userID, rank+1, rank)
+}
+
+// ฟังก์ชันปล่อยคิว (Process Queue Worker)
+func startQueueWorker(db *gorm.DB, rdb *redis.Client) {
+  ticker := time.NewTicker(2 * time.Second) // เช็กคิวทุก 2 วินาที
+  defer ticker.Stop()
+
+  for range ticker.C {
+    // --- ส่วนที่ 1: เช็กว่าตอนนี้มีคน "กำลังจอง" อยู่กี่คน ---
+    // เราจะนับจาก Key ที่ขึ้นต้นด้วย "session:*" ใน Redis
+    activeSessions, _ := rdb.Keys(ctx, "session:*").Result()
+
+    limit := 5 // สมมติให้จองพร้อมกันได้แค่ 5 คน
+    if len(activeSessions) >= limit {
+      fmt.Printf("ระบบเต็ม (%d/%d): ยังไม่เรียกคิวเพิ่ม...\n", len(activeSessions), limit)
+      continue
+    }
+
+    // --- ส่วนที่ 2: หยิบคนจากหัวแถว (ลำดับ 0) ---
+    // ZPopMin: ดึงคนที่มี Score น้อยที่สุด (มาก่อน) ออกจาก Sorted Set
+    result, err := rdb.ZPopMin(ctx, "waiting_room", 1).Result()
+    if err != nil || len(result) == 0 {
+      continue // ไม่มีคนต่อคิว
+    }
+
+    userID := result[0].Member.(string)
+    orderID := fmt.Sprintf("ORD-%d", time.Now().Unix()) // สร้าง Order ID แบบง่าย
+
+    // --- ส่วนที่ 3: สร้าง Order ใน Postgres ---
+    // เตรียมรายการสินค้า
+    items := []OrderItem{
+      {
+        ProductID: "FISH-001", // ปลาทับทิมถังที่ 1
+        Quantity:  2,
+        Price:     150.00,
+      },
+      {
+        ProductID: "EGG-05",    // ไข่ไก่เบอร์ 0
+        Quantity:  1,
+        Price:     120.00,
+      },
+    }
+    // คำนวณ TotalPrice (หมุน Loop)
+    var totalPrice float64
+    for _, item := range items {
+      // ยอดรวม = ยอดรวมเดิม + (ราคาต่อชิ้น * จำนวน)
+      totalPrice += item.Price * float64(item.Quantity)
+    }
+    // สร้าง Order พร้อมยอดรวม
+    newOrder := Order{
+      ID:        orderID,
+      UserID:    userID,
+      Status:    OrderWaitingPayment,
+      Items:     items,
+      TotalPrice: totalPrice,
+      ExpiresAt: time.Now().Add(5 * time.Minute),
+    }
+    // บันทึกลง DB
+    db.Create(&newOrder)
+
+    // --- ส่วนที่ 4: สร้าง Session ใน Redis เพื่อให้ checkUserCurrentState เจอ ---
+    rdb.Set(ctx, "session:"+userID, orderID, 5*time.Minute)
+
+    fmt.Printf("[Queue] เรียกคิว User: %s -> สร้าง Order: %s สำเร็จ!\n", userID, orderID)
+  }
+}
+
+func main() {
+  // 1. เชื่อมต่อ DB/Redis
+  initConnections()
+
+  // 2. Cleanup orders (Background Worker)
+  go startCleanupWorker(db)
+
+  // 3. Run queue from redis (Background Worker)
+  go startQueueWorker(db, rdb)
+
+  addToQueue("User_A")
+  time.Sleep(100 * time.Millisecond)
+  addToQueue("User_B")
+  time.Sleep(100 * time.Millisecond)
+  addToQueue("User_C")
+  time.Sleep(100 * time.Millisecond)
+  addToQueue("User_D")
+
+  fmt.Println("ระบบเริ่มทำงานแล้ว โปรดรอเรียกคิว...")
+
+  select {}
+
+  // ทดสอบ: ลองเช็ก User ID "081XXXXXXX"
+  // testUserID := "0812345678"
+
+  // --- สร้าง Order จำลองลง Postgres ---
+  /* newOrder := Order{
+    ID:        "ORD-101",
+    UserID:    testUserID,
+    Status:    "DRAFT",
+    ExpiresAt: time.Now().Add(10 * time.Minute),
+  }
+  db.Create(&newOrder)
+  fmt.Println("สร้าง Order จำลองสำเร็จ!") */
+
+  // --- สร้าง Session ใน Redis (ตั้งเวลาตาย 10 นาที) ---
+  /* err := rdb.Set(ctx, "session:"+testUserID, "ORD-101", 10*time.Minute).Err()
+  if err != nil {
+    fmt.Println("เขียน Redis ไม่เข้า:", err)
+  } else {
+    fmt.Println("เขียนสถานะลง Redis สำเร็จ (Expire ใน 10 นาที)")
+  } */
+
+  // checkUserCurrentState(testUserID)
+}
