@@ -16,6 +16,10 @@ go get gorm.io/gorm
 - ติดตั้ง Driver Postgres สำหรับ GORM
 go get gorm.io/driver/postgres
 
+- options
+go get github.com/shopspring/decimal
+go get github.com/google/uuid
+
 
 
 - on local environment
@@ -25,7 +29,7 @@ docker compose down -v
 DB_HOST=localhost \
 DB_USER=user \
 DB_PASS=password \
-DB_NAME=name_db \
+DB_NAME=totoro_db \
 DB_PORT=5432 \
 REDIS_ADDR=localhost:6379 \
 AUTH_SECRET_KEY=a-string-secret-at-least-256-bits-long \
@@ -43,7 +47,7 @@ docker run --network totoro-app_default \
   -e DB_HOST=db \
   -e DB_USER=user \
   -e DB_PASS=password \
-  -e DB_NAME=name_db \
+  -e DB_NAME=totoro_db \
   -e DB_PORT=5432 \
   -e REDIS_ADDR=cache:6379 \
   -e AUTH_SECRET_KEY=a-string-secret-at-least-256-bits-long \

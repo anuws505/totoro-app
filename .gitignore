@@ -1,1 +1,8 @@
+.postgres_data/*
+!.postgres_data/.gitkeep
+.redis_data/*
+!.redis_data/.gitkeep
+.redisinsight_data/*
+!.redisinsight_data/.gitkeep
 .env
+.vscode
