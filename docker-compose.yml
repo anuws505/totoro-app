@@ -13,19 +13,14 @@ services:
       - ./.postgres_data:/var/lib/postgresql/data
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
-      - SETUID
-      - SETGID
-      - FOWNER
     security_opt:
       - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
 
   cache:
     image: redis:7-alpine
@@ -37,17 +32,14 @@ services:
       - ./.redis_data:/data
     cap_drop:
       - ALL
-    cap_add:
-      - SETUID
-      - SETGID
-      - CHOWN
     security_opt:
       - no-new-privileges:true
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
 
   adminer:
     image: adminer:latest
@@ -60,9 +52,10 @@ services:
       - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 8080 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 45s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
 
   redis-insight:
     image: redis/redisinsight:latest
@@ -79,6 +72,7 @@ services:
       - no-new-privileges:true
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:5540"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 45s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
