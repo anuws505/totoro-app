@@ -1,4 +1,4 @@
-// internal/auth/register.go
+// internal/auth/create.go
 package auth
 
 import (
@@ -9,13 +9,13 @@ import (
 	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
-type RegisterRequest struct {
+type CreateRequest struct {
   Mobile   string `json:"mobile"`
   Password string `json:"password"`
 }
 
-func HandleRegister(w http.ResponseWriter, r *http.Request) {
-  var req RegisterRequest
+func HandleCreate(w http.ResponseWriter, r *http.Request) {
+  var req CreateRequest
   if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
     core.WriteError(w, http.StatusBadRequest, "Invalid request", "40000")
     return
@@ -31,7 +31,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
   var existingUser User
   if err := core.DB.Where("mobile = ?", req.Mobile).First(&existingUser).Error; err == nil {
     core.WriteError(w, http.StatusConflict,
-      "Mobile number already registered", "40009")
+      "Mobile number already created", "40009")
     return
   }
 
@@ -84,7 +84,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 
   // 6. Return response
   core.WriteSuccess(w, http.StatusCreated,
-    "User registered successfully", "20001",
+    "User created successfully", "20001",
     map[string]interface{}{
       "token": token,
       "user": map[string]string{

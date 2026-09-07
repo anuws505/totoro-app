@@ -39,6 +39,6 @@ USER 10001:10001
 EXPOSE 8080
 
 HEALTHCHECK --interval=60s --timeout=2s --start-period=15s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:8080/healthz || exit 1
+  CMD wget --quiet --tries=1 --spider http://127.0.0.1:8080/healthz || exit 1
 
 CMD ["./main"]

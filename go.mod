@@ -1,13 +1,13 @@
 module totoro-app
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/gorilla/mux v1.8.1
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/redis/go-redis/v9 v9.22.0
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	gorm.io/driver/postgres v1.6.2
 	gorm.io/gorm v1.31.2
 )

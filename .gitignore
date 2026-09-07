@@ -1,8 +1,19 @@
+# Data folders - these contain large Postgres and Redis data
 .postgres_data/*
-!.postgres_data/.gitkeep
 .redis_data/*
-!.redis_data/.gitkeep
 .redisinsight_data/*
-!.redisinsight_data/.gitkeep
+
+# Git-specific files
+.git/
+.gitignore
+
+# Environment variables (contains secrets)
 .env
-.vscode
+
+# Editor settings
+.vscode/
+
+# Create dummy files to satisfy .gitignore check (won't be tracked)
+!.postgres_data/.gitkeep
+!.redis_data/.gitkeep
+!.redisinsight_data/.gitkeep

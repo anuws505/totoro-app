@@ -10,6 +10,9 @@ go clean -cache -modcache
 - จัดระเบียบ Module ใหม่ และโหลด Library ที่ขาด
 go mod tidy
 
+- อัพเดท library
+go get -u ./...
+
 - ติดตั้ง GORM (Core Package)
 go get gorm.io/gorm
 
@@ -62,19 +65,18 @@ docker run --network totoro-app_default \
   totoro-app:v1
 
 
+curl -X POST http://localhost:8080/api/v1/auth/create \
+-H "Content-Type: application/json" \
+-d '{
+  "mobile": "0812225656",
+  "password": "1234"
+}'
 
 curl -X POST http://localhost:8080/api/v1/auth/login \
 -H "Content-Type: application/json" \
 -d '{
   "mobile": "0812225656",
   "password": "12345"
-}'
-
-curl -X POST http://localhost:8080/api/v1/auth/register \
--H "Content-Type: application/json" \
--d '{
-  "mobile": "0812225656",
-  "password": "1234"
 }'
 
 curl -X POST http://localhost:8080/api/v1/auth/otp/request \

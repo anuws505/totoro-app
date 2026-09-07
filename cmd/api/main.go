@@ -28,28 +28,35 @@ func main() {
 
   r := mux.NewRouter()
 
+  r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("ok"))
+  }).Methods("GET")
+
   // ----------------------------------------------------
   // 1. Public Routes (ไม่ต้องผูก Middleware)
   // ----------------------------------------------------
-  r.HandleFunc("/api/v1/auth/login", auth.HandleLogin).Methods("POST")
-  r.HandleFunc("/api/v1/auth/register", auth.HandleRegister).Methods("POST")
-  r.HandleFunc("/api/v1/auth/otp/request", auth.HandleRequestOTP).Methods("POST")
-  r.HandleFunc("/api/v1/auth/otp/verify", auth.HandleVerifyOTP).Methods("POST")
-  r.HandleFunc("/api/v1/items", services.HandleGetMasterItems).Methods("GET")
+  publicRouter := r.PathPrefix("/api/v1").Subrouter()
+
+  publicRouter.HandleFunc("/auth/create", auth.HandleCreate).Methods("POST")
+  publicRouter.HandleFunc("/auth/login", auth.HandleLogin).Methods("POST")
+  publicRouter.HandleFunc("/auth/otp/request", auth.HandleRequestOTP).Methods("POST")
+  publicRouter.HandleFunc("/auth/otp/verify", auth.HandleVerifyOTP).Methods("POST")
+  publicRouter.HandleFunc("/items", services.HandleGetMasterItems).Methods("GET")
 
   // ----------------------------------------------------
-  // 2. Protected User Routes (ต้องผ่าน AuthMiddleware)
+  // 2. Protected Routes (ต้องผ่าน AuthMiddleware)
   // ----------------------------------------------------
-  userRouter := r.PathPrefix("/api/v1").Subrouter()
-  userRouter.Use(auth.AuthMiddleware)
+  protectedRouter := r.PathPrefix("/api/v1").Subrouter()
+  protectedRouter.Use(auth.AuthMiddleware)
 
-  // Auth & User Profile
-  userRouter.HandleFunc("/auth/logout", auth.HandleLogout).Methods("POST")
-  userRouter.HandleFunc("/user/profile", auth.HandleUpdateUsername).Methods("PATCH")
-  userRouter.HandleFunc("/user/change-password", auth.HandleChangePassword).Methods("POST")
+  // Logout & User Profile
+  protectedRouter.HandleFunc("/auth/logout", auth.HandleLogout).Methods("POST")
+  protectedRouter.HandleFunc("/user/profile", auth.HandleUpdateUsername).Methods("PATCH")
+  protectedRouter.HandleFunc("/user/change-password", auth.HandleChangePassword).Methods("POST")
 
-  // Sheet Services
-  userRouter.HandleFunc("/sheets", services.HandleCreateSheet).Methods("POST")
+  // Sheet Service
+  protectedRouter.HandleFunc("/sheets", services.HandleCreateSheet).Methods("POST")
 
   // ----------------------------------------------------
   // 3. Protected Admin Routes (ผ่าน AuthMiddleware + AdminMiddleware)
